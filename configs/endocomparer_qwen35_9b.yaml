@@ -1,0 +1,31 @@
+model: Qwen/Qwen3.5-9B          # or a local directory holding the base model
+
+# Language-model LoRA (PEFT): attention, MLP and Gated-DeltaNet projections of all 32 layers, 200 modules
+lora_r: 32
+lora_alpha: 64
+lora_dropout: 0.05
+
+# Pseudo-Siamese Visual LoRA: one adapter per video slot on the 108 vision-block Linears + the 2 merger Linears
+psvl_mode: dual                 
+psvl_r: 32
+psvl_alpha: 64
+psvl_dropout: 0.05
+
+# Frames (the shared evaluation protocol): 16 per caption clip, 64 per skill clip, at most 784 x 448 px per frame
+frames_caption: 16
+frames_skill: 64
+max_pixels: 351232
+
+# Optimisation: AdamW, cosine decay, 3 % warm-up, no weight decay, one epoch, effective batch 16
+# (2 GPUs x grad_accum 8 x per-device batch 1; set grad_accum = 16 / number of GPUs)
+lr: 1.0e-4
+warmup_ratio: 0.03
+epochs: 1
+grad_accum: 8
+seed: 20260928                 
+
+# Checkpoints (trainer state + language-model adapter + PSVL weights) and data loading
+save_steps: 50
+save_total_limit: 2
+workers: 4
+attn: flash_attention_2

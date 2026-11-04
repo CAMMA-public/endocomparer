@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tools / IDE
+.vscode/
+.idea/
+.DS_Store
+.ipynb_checkpoints/
+
+# Data, caches, weights, experiment outputs: never committed here
+# (only the repo-root data/ is ignored; endocomparer/data/ holds code and a synthetic example)
+/data/
+cache/
+checkpoints/
+weights/
+experiments/
+outputs/
+wandb/
+*.pt
+*.safetensors
+*.parquet
+*.mp4
+!demo/videos/*.mp4

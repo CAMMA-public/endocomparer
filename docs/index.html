@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EndoComparer</title>
+<meta name="description" content="EndoComparer: a vision-language model for cross-case comparison of surgical videos, with Pseudo-Siamese Visual LoRA and Perceive-then-Compare reasoning, and EndoDiffVQA, a benchmark of 10,939 two-video multiple-choice questions over cholecystectomy and gastric bypass.">
+<meta property="og:title" content="EndoComparer: Comparative Surgical Video Question Answering">
+<meta property="og:description" content="A VLM focused on cross-case surgical video comparison, and EndoDiffVQA, the first comparative surgical video QA benchmark.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="static/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Ccircle cx='44' cy='60' r='34' fill='none' stroke='%230F3B47' stroke-width='7'/%3E%3Ccircle cx='76' cy='60' r='34' fill='none' stroke='%231B8A9A' stroke-width='7'/%3E%3Cpath d='M60 30 A34 34 0 0 1 60 90 A34 34 0 0 1 60 30 Z' fill='%23E2583F'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<nav class="nav" aria-label="Page sections">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="EndoComparer, back to top"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="44" cy="60" r="34" fill="none" stroke="currentColor" stroke-width="8"/><circle cx="76" cy="60" r="34" fill="none" stroke="#1B8A9A" stroke-width="8"/><path d="M60 30 A34 34 0 0 1 60 90 A34 34 0 0 1 60 30 Z" fill="#E2583F"/></svg></a>
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#model">EndoComparer</a></li>
+      <li><a href="#dataset">Dataset</a></li>
+      <li><a href="#templates">Templates</a></li>
+      <li><a href="#qualitative">Qualitative</a></li>
+      <li><a href="#bibtex">Cite</a></li>
+    </ul>
+    <button class="theme" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle light / dark">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 72" class="logo" role="img" aria-label="EndoComparer"><g transform="scale(0.6)"><circle cx="44" cy="60" r="34" fill="none" stroke="currentColor" stroke-width="7"/><circle cx="76" cy="60" r="34" fill="none" stroke="#1B8A9A" stroke-width="7"/><path d="M60 30 A34 34 0 0 1 60 90 A34 34 0 0 1 60 30 Z" fill="#E2583F"/></g><path d="M86.38 47.0V22.52H102.36V26.837999999999997H91.004V32.074H100.32V36.391999999999996H91.004V42.682H102.36V47.0Z" fill="currentColor"/><path d="M117.952 47.0V38.33Q117.952 37.701 117.884 36.7235Q117.816 35.745999999999995 117.459 34.76Q117.102 33.774 116.2945 33.111000000000004Q115.48700000000001 32.448 114.00800000000001 32.448Q113.41300000000001 32.448 112.733 32.635000000000005Q112.053 32.822 111.458 33.3575Q110.863 33.893 110.4805 34.93Q110.098 35.967 110.098 37.684L107.446 36.426Q107.446 34.25 108.33 32.346000000000004Q109.214 30.442 110.9905 29.269Q112.767 28.096 115.47 28.096Q117.629 28.096 118.989 28.826999999999998Q120.349 29.558 121.1055 30.68Q121.862 31.802 122.185 33.0175Q122.50800000000001 34.233 122.57600000000001 35.236Q122.644 36.239 122.644 36.698V47.0ZM105.406 47.0V28.639999999999997H109.52000000000001V34.726H110.098V47.0Z" fill="currentColor"/><path d="M133.51 47.51Q130.977 47.51 129.073 46.235Q127.169 44.96 126.1065 42.766999999999996Q125.044 40.574 125.044 37.82Q125.044 35.015 126.1235 32.8305Q127.203 30.645999999999997 129.15800000000002 29.387999999999998Q131.113 28.13 133.748 28.13Q136.36599999999999 28.13 138.151 29.405Q139.936 30.68 140.85399999999998 32.873000000000005Q141.772 35.066 141.772 37.82Q141.772 40.574 140.8455 42.766999999999996Q139.91899999999998 44.96 138.08299999999997 46.235Q136.24699999999999 47.51 133.51 47.51ZM134.258 43.396Q135.805 43.396 136.73149999999998 42.699Q137.658 42.002 138.06599999999997 40.744Q138.474 39.486 138.474 37.82Q138.474 36.153999999999996 138.06599999999997 34.896Q137.658 33.638 136.76549999999997 32.941Q135.873 32.244 134.428 32.244Q132.881 32.244 131.8865 33.0005Q130.892 33.757 130.416 35.0235Q129.94 36.29 129.94 37.82Q129.94 39.367 130.399 40.6335Q130.858 41.9 131.81 42.647999999999996Q132.762 43.396 134.258 43.396ZM138.474 47.0V34.42H137.896V22.52H142.554V47.0Z" fill="currentColor"/><path d="M154.576 47.51Q151.805 47.51 149.714 46.269Q147.623 45.028 146.45850000000002 42.8435Q145.294 40.659 145.294 37.82Q145.294 34.947 146.484 32.7625Q147.674 30.578 149.765 29.354Q151.856 28.13 154.576 28.13Q157.347 28.13 159.44650000000001 29.371Q161.546 30.612 162.719 32.7965Q163.892 34.981 163.892 37.82Q163.892 40.676 162.7105 42.8605Q161.529 45.045 159.4295 46.2775Q157.32999999999998 47.51 154.576 47.51ZM154.576 43.192Q156.803 43.192 157.8995 41.6875Q158.996 40.183 158.996 37.82Q158.996 35.372 157.8825 33.91Q156.769 32.448 154.576 32.448Q153.063 32.448 152.094 33.128Q151.125 33.808 150.6575 35.015Q150.19 36.222 150.19 37.82Q150.19 40.285 151.30349999999999 41.7385Q152.417 43.192 154.576 43.192Z" fill="currentColor"/><path d="M176.696 47.51Q173.041 47.51 170.49099999999999 45.894999999999996Q167.941 44.28 166.6065 41.407Q165.27200000000002 38.534 165.27200000000002 34.76Q165.27200000000002 30.985999999999997 166.6065 28.113Q167.941 25.24 170.49099999999999 23.625Q173.041 22.009999999999998 176.696 22.009999999999998Q180.94600000000003 22.009999999999998 183.69150000000002 24.168999999999997Q186.437 26.328 187.47400000000002 29.983L184.39700000000002 30.799Q183.649 28.061999999999998 181.728 26.480999999999998Q179.80700000000002 24.9 176.696 24.9Q173.959 24.9 172.14 26.141Q170.321 27.381999999999998 169.40300000000002 29.600499999999997Q168.485 31.819 168.46800000000002 34.76Q168.45100000000002 37.684 169.36900000000003 39.9025Q170.287 42.121 172.123 43.3705Q173.959 44.62 176.696 44.62Q179.80700000000002 44.62 181.728 43.0305Q183.649 41.441 184.39700000000002 38.721000000000004L187.47400000000002 39.537Q186.437 43.175 183.69150000000002 45.3425Q180.94600000000003 47.51 176.696 47.51Z" fill="#1B8A9A"/><path d="M198.034 47.51Q195.297 47.51 193.31650000000002 46.269Q191.336 45.028 190.26500000000001 42.834999999999994Q189.19400000000002 40.641999999999996 189.19400000000002 37.803Q189.19400000000002 34.913 190.282 32.736999999999995Q191.37 30.561 193.359 29.3455Q195.348 28.13 198.034 28.13Q200.788 28.13 202.77700000000002 29.362499999999997Q204.76600000000002 30.595 205.82850000000002 32.7795Q206.89100000000002 34.964 206.89100000000002 37.803Q206.89100000000002 40.676 205.82 42.8605Q204.749 45.045 202.76 46.2775Q200.77100000000002 47.51 198.034 47.51ZM198.034 44.637Q200.89000000000001 44.637 202.284 42.733000000000004Q203.678 40.829 203.678 37.803Q203.678 34.692 202.267 32.8475Q200.856 31.003 198.034 31.003Q196.113 31.003 194.872 31.869999999999997Q193.631 32.736999999999995 193.019 34.266999999999996Q192.407 35.797 192.407 37.803Q192.407 40.897 193.835 42.766999999999996Q195.263 44.637 198.034 44.637Z" fill="#1B8A9A"/><path d="M231.578 47.0 231.595 35.253Q231.595 33.196 230.4985 32.031499999999994Q229.40200000000002 30.866999999999997 227.651 30.866999999999997Q226.631 30.866999999999997 225.71300000000002 31.3345Q224.79500000000002 31.802 224.217 32.796499999999995Q223.639 33.791 223.639 35.338L222.041 34.692Q222.007 32.736999999999995 222.8485 31.266499999999997Q223.69 29.796 225.152 28.979999999999997Q226.614 28.163999999999998 228.45000000000002 28.163999999999998Q231.323 28.163999999999998 232.972 29.9065Q234.621 31.649 234.621 34.59L234.604 47.0ZM209.614 47.0V28.639999999999997H212.317V33.553H212.657V47.0ZM220.613 47.0 220.63 35.372Q220.63 33.263999999999996 219.542 32.0655Q218.454 30.866999999999997 216.65200000000002 30.866999999999997Q214.86700000000002 30.866999999999997 213.762 32.090999999999994Q212.657 33.315 212.657 35.338L211.059 34.385999999999996Q211.059 32.601 211.909 31.189999999999998Q212.75900000000001 29.779 214.221 28.9715Q215.683 28.163999999999998 217.536 28.163999999999998Q219.389 28.163999999999998 220.76600000000002 28.945999999999998Q222.143 29.727999999999998 222.89100000000002 31.1815Q223.639 32.635 223.639 34.641L223.622 47.0Z" fill="#1B8A9A"/><path d="M246.473 47.51Q243.889 47.51 242.121 46.2265Q240.353 44.943 239.4435 42.7415Q238.534 40.54 238.534 37.803Q238.534 35.032 239.4435 32.839Q240.353 30.645999999999997 242.1295 29.387999999999998Q243.906 28.13 246.49 28.13Q249.04 28.13 250.8845 29.3965Q252.729 30.663 253.715 32.856Q254.701 35.049 254.701 37.803Q254.701 40.557 253.715 42.75Q252.729 44.943 250.8845 46.2265Q249.04 47.51 246.473 47.51ZM238.024 55.16V28.639999999999997H240.727V42.155H241.067V55.16ZM246.099 44.739Q247.918 44.739 249.108 43.821Q250.298 42.903 250.893 41.3305Q251.488 39.757999999999996 251.488 37.803Q251.488 35.864999999999995 250.9015 34.300999999999995Q250.315 32.736999999999995 249.0995 31.818999999999996Q247.88400000000001 30.901 246.014 30.901Q244.229 30.901 243.056 31.7765Q241.883 32.652 241.305 34.207499999999996Q240.727 35.763 240.727 37.803Q240.727 39.809 241.2965 41.3815Q241.866 42.954 243.056 43.8465Q244.246 44.739 246.099 44.739Z" fill="#1B8A9A"/><path d="M262.66 47.51Q260.603 47.51 259.2175 46.7535Q257.832 45.997 257.12649999999996 44.756Q256.421 43.515 256.421 42.036Q256.421 40.591 256.9735 39.5285Q257.526 38.466 258.529 37.7605Q259.532 37.055 260.926 36.647Q262.235 36.29 263.85850000000005 36.0265Q265.482 35.763 267.148 35.542Q268.814 35.321 270.259 35.117L269.171 35.745999999999995Q269.222 33.298 268.1935 32.125Q267.165 30.951999999999998 264.649 30.951999999999998Q262.983 30.951999999999998 261.7335 31.708499999999997Q260.484 32.464999999999996 259.974 34.165L257.101 33.298Q257.764 30.884 259.668 29.506999999999998Q261.572 28.13 264.683 28.13Q267.182 28.13 268.9755 29.0225Q270.769 29.915 271.551 31.717Q271.942 32.567 272.044 33.561499999999995Q272.146 34.556 272.146 35.644V47.0H269.46000000000004V42.597L270.089 43.005Q269.052 45.232 267.19050000000004 46.370999999999995Q265.329 47.51 262.66 47.51ZM263.119 44.977Q264.75100000000003 44.977 265.94950000000006 44.3905Q267.148 43.804 267.879 42.843500000000006Q268.61 41.883 268.831 40.744Q269.086 39.894 269.1115 38.8485Q269.137 37.803 269.137 37.242L270.19100000000003 37.701Q268.712 37.905 267.284 38.092Q265.856 38.278999999999996 264.581 38.4915Q263.306 38.704 262.286 38.992999999999995Q261.538 39.231 260.8835 39.605000000000004Q260.229 39.979 259.8295 40.5655Q259.43 41.152 259.43 42.019Q259.43 42.766999999999996 259.8125 43.447Q260.195 44.127 261.0025 44.552Q261.81 44.977 263.119 44.977Z" fill="#1B8A9A"/><path d="M275.56600000000003 47.0V28.639999999999997H278.26900000000006V33.077L277.82700000000006 32.498999999999995Q278.15000000000003 31.649 278.6685 30.935000000000002Q279.187 30.221 279.833 29.762Q280.547 29.183999999999997 281.44800000000004 28.878Q282.34900000000005 28.572 283.28400000000005 28.5125Q284.21900000000005 28.453 285.035 28.639999999999997V31.479Q284.083 31.223999999999997 282.9440000000001 31.342999999999996Q281.80500000000006 31.462 280.836 32.176Q279.95200000000006 32.805 279.4675000000001 33.706Q278.98300000000006 34.607 278.79600000000005 35.6525Q278.60900000000004 36.698 278.60900000000004 37.786V47.0Z" fill="#1B8A9A"/><path d="M295.22100000000006 47.51Q292.51800000000003 47.51 290.50350000000003 46.311499999999995Q288.48900000000003 45.113 287.3670000000001 42.9625Q286.24500000000006 40.812 286.24500000000006 37.939Q286.24500000000006 34.93 287.35 32.7285Q288.45500000000004 30.526999999999997 290.43550000000005 29.3285Q292.41600000000005 28.13 295.08500000000004 28.13Q297.85600000000005 28.13 299.8025 29.405Q301.749 30.68 302.72650000000004 33.043Q303.70400000000006 35.406 303.56800000000004 38.67H300.50800000000004V37.582Q300.45700000000005 34.199 299.1310000000001 32.524499999999996Q297.80500000000006 30.849999999999998 295.18700000000007 30.849999999999998Q292.38200000000006 30.849999999999998 290.9200000000001 32.652Q289.458 34.454 289.458 37.82Q289.458 41.067 290.9200000000001 42.852000000000004Q292.38200000000006 44.637 295.08500000000004 44.637Q296.90400000000005 44.637 298.24700000000007 43.804Q299.59000000000003 42.971000000000004 300.3550000000001 41.407L303.26200000000006 42.41Q302.19100000000003 44.841 300.04050000000007 46.1755Q297.89000000000004 47.51 295.22100000000006 47.51ZM288.43800000000005 38.67V36.239H302.004V38.67Z" fill="#1B8A9A"/><path d="M306.34200000000004 47.0V28.639999999999997H309.0450000000001V33.077L308.60300000000007 32.498999999999995Q308.92600000000004 31.649 309.44450000000006 30.935000000000002Q309.963 30.221 310.60900000000004 29.762Q311.32300000000004 29.183999999999997 312.22400000000005 28.878Q313.12500000000006 28.572 314.06000000000006 28.5125Q314.99500000000006 28.453 315.81100000000004 28.639999999999997V31.479Q314.85900000000004 31.223999999999997 313.72 31.342999999999996Q312.581 31.462 311.612 32.176Q310.72800000000007 32.805 310.24350000000004 33.706Q309.75900000000007 34.607 309.57200000000006 35.6525Q309.38500000000005 36.698 309.38500000000005 37.786V47.0Z" fill="#1B8A9A"/></svg>
+    <h1>EndoComparer: Comparative Surgical Video Question Answering with Pseudo-Siamese Visual Adaptation and Perceive-then-Compare Reasoning</h1>
+
+    <div class="authors">
+      <span><a href="https://xemcerk.github.io/">Shi Li</a><sup>1,2,*</sup></span>, <span><a href="https://lalithnag.github.io/">Lalith Sharan</a><sup>1,2</sup></span>, <span><a href="https://scholar.google.com/citations?user=DuYFrSUAAAAJ">Joël L. Lavanchy</a><sup>3,4</sup></span>,
+      <span><a href="https://flaick.github.io/">Kun Yuan</a><sup>1,2</sup></span>, <span><a href="https://arbua.github.io/">Lorenzo Arboit</a><sup>1,2</sup></span>, <span>Nabani Banik<sup>1,2</sup></span>,
+      <span>Elif Yazici<sup>1,2</sup></span>, <span><a href="https://scholar.google.com/citations?user=KtS_p1QAAAAJ&hl=it">Maria Vannucci</a><sup>2,5</sup></span>, <span><a href="https://vinkle.github.io/">Vinkle Srivastav</a><sup>1,2</sup></span>,
+      <span><a href="https://scholar.google.com/citations?user=laTXGpoAAAAJ">Pietro Mascagni</a><sup>1,2,6</sup></span>, <span><a href="https://camma.unistra.fr/npadoy/">Nicolas Padoy</a><sup>1,2</sup></span>
+    </div>
+    <div class="affils">
+      <sup>1</sup>ICube, UMR7357, University of Strasbourg, CNRS, INSERM, France &nbsp;·&nbsp;
+      <sup>2</sup>Institute of Image-Guided Surgery, IHU Strasbourg, France &nbsp;·&nbsp;
+      <sup>3</sup>University Digestive Health Care Center – Clarunis, Basel, Switzerland &nbsp;·&nbsp;
+      <sup>4</sup>Department of Biomedical Engineering, University of Basel, Switzerland &nbsp;·&nbsp;
+      <sup>5</sup>General Surgery Department, University of Turin, Italy &nbsp;·&nbsp;
+      <sup>6</sup>Fondazione Policlinico Universitario Agostino Gemelli IRCCS, Rome, Italy
+      <br><span class="small"><sup>*</sup>Corresponding author: shi.li@unistra.fr</span>
+    </div>
+
+    <div class="links">
+      <a class="btn soon" href="#" aria-disabled="true" title="Paper link will appear here">
+        <svg viewBox="0 0 24 24"><path d="M6 2h8l6 6v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5zM8 13h8v1.5H8V13zm0 3.5h8V18H8v-1.5z"/></svg>
+        Paper
+      </a>
+      <a class="btn soon" href="#" aria-disabled="true" title="arXiv link will appear here">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4V4zm0 14h16v2H4v-2zm2-9h12l-3 4 3 4H6l3-4-3-4z"/></svg>
+        arXiv
+      </a>
+      <a class="btn" href="https://github.com/CAMMA-public/endocomparer">
+        <svg viewBox="0 0 24 24"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.17c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg>
+        Code
+      </a>
+      <a class="btn soon" href="#" aria-disabled="true" title="Dataset link will appear here">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v4H3V5a1 1 0 0 1 1-1zm-1 7h18v4H3v-4zm0 6h18v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2z"/></svg>
+        Dataset
+      </a>
+      <a class="btn soon" href="#" aria-disabled="true" title="Model weights will appear here">
+        <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5zm0 2.3L5 8.1v7.8l7 3.8 7-3.8V8.1l-7-3.8z"/></svg>
+        Models
+      </a>
+    </div>
+
+    <div class="tldr">
+      <span class="lbl">TL;DR</span>
+      <p><b>EndoComparer</b> is a vision-language model focused on <b>cross-case surgical video comparison</b>: given two
+        surgical videos from different cases, it answers questions about whether and how they differ in anatomy, tools,
+        actions and skill. <b>EndoDiffVQA</b> is the benchmark we built for this task.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================================================ abstract -->
+<section id="abstract">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Abstract</div>
+    </div>
+    <p><b>Purpose:</b> Surgical training benefits from explicit comparison between cases: in patient condition, in
+      technique and in skill proficiency. Surgical vision-language models (VLMs) offer a promising and flexible interface
+      for this purpose. Yet current VLMs typically see one video at a time, and they often fall short when asked to
+      compare videos.</p>
+    <p><b>Methods:</b> We propose <i>EndoComparer</i>, a VLM for comparative surgical video question answering with two
+      components. (a) A Pseudo-Siamese Visual LoRA (PSVL) gives each video slot its own low-rank adapter over a shared
+      frozen vision encoder, separating the two videos in the visual pathway at the cost of a single encoder pass.
+      (b) A Perceive-then-Compare chain of thought (PtC-CoT) trains the model to first state what each video shows, then
+      derive the answer from these statements. We further curate <i>EndoDiffVQA</i>, a benchmark of nearly 11K
+      multiple-choice questions on video pairs over cholecystectomy and gastric bypass procedures, covering anatomy,
+      tool, action and skill.</p>
+    <p><b>Results:</b> EndoComparer outperforms strong generalist and surgical VLMs on detecting and specifying
+      differences between videos. Ablations show that the two proposed components contribute complementarily, and the
+      model remains more robust under a video-swap control that exposes confusion between the two videos.</p>
+    <p><b>Conclusion:</b> Providing a dedicated visual reasoning path through PSVL and PtC-CoT makes cross-case
+      comparison of surgical videos more robust for VLMs. EndoDiffVQA and EndoComparer provide a benchmark and a strong
+      baseline for this task.</p>
+  </div>
+</section>
+
+<!-- ============================================================ model -->
+<section id="model">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">EndoComparer</div>
+      <h2>Model architecture</h2>
+    </div>
+    <figure class="figure">
+      <div class="frame"><img src="static/images/model.png" alt="EndoComparer architecture: two video slots pass through a shared frozen vision transformer and merger with slot-specific LoRA adapters, the language model reads the interleaved sequence, and the Perceive-then-Compare response states what each video shows before the answer letter."></div>
+    </figure>
+
+    <details class="fold">
+      <summary>Table 1: comparison with baselines on the EndoDiffVQA test split</summary>
+      <div class="inner">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2">Model</th>
+                <th colspan="3" class="num">4-subset macro</th>
+                <th colspan="4" class="num sep">Strict per subset</th>
+              </tr>
+              <tr>
+                <th class="num">Detect</th><th class="num">Specify</th><th class="num">Strict</th>
+                <th class="num sep">Chole-Cap</th><th class="num">LRYGB-Cap</th><th class="num">Chole-Skill</th><th class="num">LRYGB-Skill</th>
+              </tr>
+            </thead>
+            <tbody>
+          <tr class="group"><td colspan="8">Zero-shot</td></tr>
+          <tr><td>Qwen3.5-9B</td><td class="num">49.8</td><td class="num">57.3</td><td class="num">35.4</td><td class="num sep">41.3</td><td class="num">34.4</td><td class="num">31.6</td><td class="num">34.3</td></tr>
+          <tr><td>Qwen3.8-27B</td><td class="num">52.8</td><td class="num">58.9<span class="dag">†</span></td><td class="num">35.2</td><td class="num sep">38.7</td><td class="num">33.8</td><td class="num"><b>44.7</b></td><td class="num">23.6</td></tr>
+          <tr><td>InternVL3.5-8B</td><td class="num">49.7</td><td class="num">54.5<span class="dag">†</span></td><td class="num">30.6</td><td class="num sep">44.7</td><td class="num">25.5</td><td class="num">28.6</td><td class="num">23.6</td></tr>
+          <tr><td>InternVL3.5-30B</td><td class="num">56.6</td><td class="num">57.1</td><td class="num">37.2</td><td class="num sep">44.5</td><td class="num">32.0</td><td class="num">36.3</td><td class="num">36.1</td></tr>
+          <tr><td>SurgVidLM</td><td class="num">51.5</td><td class="num">49.2<span class="dag">†</span></td><td class="num">32.1</td><td class="num sep">32.5</td><td class="num">24.9</td><td class="num">39.2</td><td class="num">32.0</td></tr>
+          <tr><td>GPT-5.5</td><td class="num">49.5</td><td class="num">56.3</td><td class="num">32.9</td><td class="num sep">45.8</td><td class="num">25.9</td><td class="num">35.2</td><td class="num">24.7</td></tr>
+          <tr><td>Gemini 3.6 Flash</td><td class="num"><b>59.1</b></td><td class="num"><b>75.1</b></td><td class="num"><b>46.9</b></td><td class="num sep"><b>53.9</b></td><td class="num"><b>46.9</b></td><td class="num">43.1</td><td class="num"><b>43.7</b></td></tr>
+          <tr class="group"><td colspan="8">Fine-tuned on EndoDiffVQA</td></tr>
+          <tr><td>InternVL3.5-8B</td><td class="num">61.6</td><td class="num">85.3<span class="dag">†</span></td><td class="num">47.0</td><td class="num sep">66.3</td><td class="num">51.7</td><td class="num">46.4</td><td class="num">23.6</td></tr>
+          <tr><td>SurgVidLM</td><td class="num">60.0</td><td class="num">88.3<span class="dag">†</span></td><td class="num">45.1</td><td class="num sep">62.6</td><td class="num">52.2</td><td class="num">38.0</td><td class="num">27.5</td></tr>
+          <tr><td>SurgTEMP</td><td class="num">60.9</td><td class="num">88.9<span class="dag">†</span></td><td class="num">46.8</td><td class="num sep">64.3</td><td class="num">52.9</td><td class="num">42.6</td><td class="num">27.5</td></tr>
+          <tr><td>SurgViVQA</td><td class="num">52.4</td><td class="num">37.5</td><td class="num">32.6</td><td class="num sep">32.9</td><td class="num">33.1</td><td class="num">36.9</td><td class="num">27.4</td></tr>
+          <tr><td>PeskaVLP</td><td class="num">61.3</td><td class="num">63.3<span class="dag">†</span></td><td class="num">44.6</td><td class="num sep">53.9</td><td class="num">44.8</td><td class="num">47.7</td><td class="num">31.9</td></tr>
+          <tr><td>SurgCLIP</td><td class="num">61.4</td><td class="num">57.3</td><td class="num">43.5</td><td class="num sep">54.0</td><td class="num">45.4</td><td class="num">47.5</td><td class="num">27.2</td></tr>
+          <tr><td>Qwen3.5-9B (backbone)</td><td class="num">63.6</td><td class="num">77.6</td><td class="num">48.3</td><td class="num sep">64.6</td><td class="num">49.4</td><td class="num">43.3</td><td class="num">31.1</td></tr>
+          <tr><td>&nbsp;&nbsp;w/o PSVL</td><td class="num">64.0</td><td class="num">78.0</td><td class="num">49.5</td><td class="num sep">65.3</td><td class="num">51.6</td><td class="num">44.9</td><td class="num">33.4</td></tr>
+          <tr><td>&nbsp;&nbsp;w/o PtC-CoT</td><td class="num">65.6</td><td class="num">80.3</td><td class="num">50.9</td><td class="num sep">68.3</td><td class="num">52.5</td><td class="num">43.3</td><td class="num">32.6</td></tr>
+          <tr class="ours"><td>EndoComparer (ours)</td><td class="num"><b>67.7</b></td><td class="num"><b>83.5</b></td><td class="num"><b>54.0</b></td><td class="num sep"><b>69.6</b></td><td class="num"><b>54.5</b></td><td class="num"><b>51.9</b></td><td class="num"><b>40.1</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">2,300 test items, %. Detect, Specify and Strict are 4-subset macros; the last four columns
+          give Strict per subset. † Specify macro over fewer than four subsets, because the model called fewer than 20
+          items Different in the others; not highlighted. Best per group in bold; the fine-tuned group includes ours.
+          Standard deviations are given in the paper.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============================================================ dataset -->
+<section id="dataset">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">EndoDiffVQA</div>
+      <h2>Dataset overview</h2>
+    </div>
+
+    <figure class="figure">
+      <div class="frame"><img src="static/images/pipeline.png" alt="The four-stage EndoDiffVQA construction pipeline: clips and annotations, per-video fact extraction, pairing and relation building, QA construction and audit."></div>
+      <figcaption><b>Construction pipeline.</b> (1) Clips and annotations from CholecT50, MultiBypass140 and CholeScore.
+        (2) Per-video facts extracted with a fixed slot schema from captions, or taken directly from the expert score
+        for skill. (3) Clips are paired within split, procedure and surgical phase, across cases, and each pair receives
+        a relation: <i>same</i>, <i>different</i>, <i>only 1</i>, <i>only 2</i> or <i>neither</i>. (4) One of 13 templates
+        renders the relation into a stem and four options, with named distractors and a clinician audit.</figcaption>
+    </figure>
+
+    <details class="fold">
+      <summary>Details on four subsets</summary>
+      <div class="inner">
+        <div class="table-wrap">
+          <table class="wrapcells">
+            <thead><tr><th>Subset</th><th>Procedure</th><th>Source annotation</th><th>Questions</th><th>Clip length</th></tr></thead>
+            <tbody>
+              <tr><td><b>Chole-Cap-DQA</b></td><td>Laparoscopic cholecystectomy</td><td>CholecT50 scene captions</td><td>Anatomy · Tool · Action</td><td>seconds to tens of seconds</td></tr>
+              <tr><td><b>LRYGB-Cap-DQA</b></td><td>Roux-en-Y gastric bypass</td><td>MultiBypass140 scene captions (newly curated)</td><td>Anatomy · Tool · Action</td><td>seconds to tens of seconds</td></tr>
+              <tr><td><b>Chole-Skill-DQA</b></td><td>Laparoscopic cholecystectomy</td><td>CholeScore OSATS-style criteria (1–5)</td><td>Skill</td><td>tens of minutes</td></tr>
+              <tr><td><b>LRYGB-Skill-DQA</b></td><td>Roux-en-Y gastric bypass</td><td>MultiBypass140 GOALS domains (newly annotated)</td><td>Skill</td><td>tens of minutes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+
+    <details class="fold">
+      <summary>Dataset stats</summary>
+      <div class="inner">
+        <figure class="figure">
+          <div class="frame"><img src="static/images/stats.png" alt="Donut charts of items per category and attribute in EndoDiffVQA." loading="lazy"></div>
+        </figure>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============================================================ templates -->
+<section id="templates">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Templates and examples</div>
+    </div>
+
+    <div class="selector" data-selector data-single="1" data-cards="#tpl-cards">
+<label class="sel"><span>Category</span><select id="tpl-cat" data-role="cat">
+<option value="all">All</option>
+<option value="Anatomy">Anatomy</option>
+<option value="Tool">Tool</option>
+<option value="Action">Action</option>
+<option value="Skill">Skill</option>
+</select></label><label class="sel"><span>Attribute</span><select id="tpl-tpl" data-role="tpl">
+<option value="A1" data-cat="Anatomy">A1 · presence</option>
+<option value="A2" data-cat="Anatomy">A2 · colour</option>
+<option value="A3" data-cat="Anatomy">A3 · position</option>
+<option value="A4" data-cat="Anatomy">A4 · state</option>
+<option value="T1" data-cat="Tool">T1 · presence</option>
+<option value="T2" data-cat="Tool">T2 · entry side</option>
+<option value="T3" data-cat="Tool">T3 · count</option>
+<option value="T4" data-cat="Tool">T4 · engagement</option>
+<option value="C1" data-cat="Action">C1 · interaction</option>
+<option value="C2" data-cat="Action">C2 · target part</option>
+<option value="C3" data-cat="Action">C3 · goal</option>
+<option value="S1" data-cat="Skill">S1 · Skill (CholeScore)</option>
+<option value="S2" data-cat="Skill">S2 · Skill (MultiBypass)</option>
+</select></label>
+    </div>
+    <div class="legend">
+      <span><b>D1</b> swap: the correct facts on the wrong videos</span>
+      <span><b>D2</b> collapse: the opposite verdict</span>
+      <span><b>D3</b> substitute: one side replaced by another value</span>
+      <span><b>D4</b> absent: a value neither video shows</span>
+    </div>
+
+    <div class="tcards" id="tpl-cards">
+
+<article class="tcard" data-tid="A1" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A1</span><span class="tag">Anatomy</span><span class="attr">presence</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: calot triangle dissection</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is the <em>&lt;entity&gt;</em> visible in both videos?</div>
+    <p class="q">Is the falciform ligament visible in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>No — visible in neither video</span><span class="why">D4 absent</span></li><li><b>(b)</b><span>No — visible in Video 1 only</span><span class="why">D1 swap</span></li><li><b>(c)</b><span>Yes — visible in both videos</span><span class="why">D2 collapse</span></li><li class="correct"><b>(d)</b><span>No — visible in Video 2 only</span><span class="why">correct</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(d) No — visible in Video 2 only
+      <br><span class="rel">relation: only Video 2</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="A2" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A2</span><span class="tag">Anatomy</span><span class="attr">colour</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: calot triangle dissection</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is the <em>&lt;entity&gt;</em> the same colour in both videos?</div>
+    <p class="q">Is the gallbladder the same color in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>No — blue-green in Video 1, yellow-pink in Video 2</span><span class="why">D1 swap</span></li><li><b>(b)</b><span>Yes — blue-green in both videos</span><span class="why">D2 collapse</span></li><li><b>(c)</b><span>Yes — gray in both videos</span><span class="why">D4 absent</span></li><li class="correct"><b>(d)</b><span>No — yellow-pink in Video 1, blue-green in Video 2</span><span class="why">correct</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(d) No — yellow-pink in Video 1, blue-green in Video 2
+      <br><span class="rel">relation: different</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="A3" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A3</span><span class="tag">Anatomy</span><span class="attr">position</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: clipping and cutting</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is the <em>&lt;entity&gt;</em> in the same part of the view in both videos?</div>
+    <p class="q">Is the gallbladder in the same part of the view in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>Yes — bottom-right in both videos</span><span class="why">D4 absent</span></li><li class="correct"><b>(b)</b><span>No — left in Video 1, top in Video 2</span><span class="why">correct</span></li><li><b>(c)</b><span>Yes — left in both videos</span><span class="why">D2 collapse</span></li><li><b>(d)</b><span>No — top in Video 1, left in Video 2</span><span class="why">D1 swap</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(b) No — left in Video 1, top in Video 2
+      <br><span class="rel">relation: different</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="A4" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A4</span><span class="tag">Anatomy</span><span class="attr">state</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: gallbladder dissection</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is the <em>&lt;entity&gt;</em> <em>&lt;state&gt;</em> in both videos?</div>
+    <p class="q">Is the cystic artery cut in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>No — cut in Video 2 only</span><span class="why">D1 swap</span></li><li class="correct"><b>(b)</b><span>No — cut in Video 1 only</span><span class="why">correct</span></li><li><b>(c)</b><span>Yes — cut in both videos</span><span class="why">D2 collapse</span></li><li><b>(d)</b><span>No — cut in neither video</span><span class="why">D4 absent</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(b) No — cut in Video 1 only
+      <br><span class="rel">relation: only Video 1</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="T1" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T1</span><span class="tag">Tool</span><span class="attr">presence</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: gallbladder dissection</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is <em>&lt;a tool&gt;</em> used in both videos?</div>
+    <p class="q">Is a hook used in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>No — a hook is used in Video 2 only</span><span class="why">D1 swap</span></li><li><b>(b)</b><span>Yes — a hook is used in both videos</span><span class="why">D2 collapse</span></li><li class="correct"><b>(c)</b><span>No — a hook is used in Video 1 only</span><span class="why">correct</span></li><li><b>(d)</b><span>No — no hook appears in either video</span><span class="why">D4 absent</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(c) No — a hook is used in Video 1 only
+      <br><span class="rel">relation: only Video 1</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="T2" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T2</span><span class="tag">Tool</span><span class="attr">entry side</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: calot triangle dissection</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Does the <em>&lt;tool&gt;</em> enter from the same side in both videos?</div>
+    <p class="q">Does the grasper enter from the same side in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>Yes — from the left in both videos</span><span class="why">D2 collapse</span></li><li><b>(b)</b><span>No — from the top in Video 1, from the left in Video 2</span><span class="why">D1 swap</span></li><li class="correct"><b>(c)</b><span>No — from the left in Video 1, from the top in Video 2</span><span class="why">correct</span></li><li><b>(d)</b><span>Yes — from the bottom-right in both videos</span><span class="why">D4 absent</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(c) No — from the left in Video 1, from the top in Video 2
+      <br><span class="rel">relation: different</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="T3" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T3</span><span class="tag">Tool</span><span class="attr">count</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: calot triangle dissection</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Do both videos show the same number of instruments engaging the <em>&lt;entity&gt;</em>?</div>
+    <p class="q">Do both videos show the same number of instruments engaging the gallbladder?</p>
+    <ul class="options"><li><b>(a)</b><span>Yes — neither video shows an instrument engaging it</span><span class="why">D4 absent</span></li><li class="correct"><b>(b)</b><span>No — more instruments in Video 2</span><span class="why">correct</span></li><li><b>(c)</b><span>Yes — the same number in both videos</span><span class="why">D2 collapse</span></li><li><b>(d)</b><span>No — more instruments in Video 1</span><span class="why">D1 swap</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(b) No — more instruments in Video 2
+      <br><span class="rel">relation: more in Video 2</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="T4" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T4</span><span class="tag">Tool</span><span class="attr">engagement</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: cleaning and coagulation</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is the <em>&lt;tool&gt;</em> actively engaged with the <em>&lt;entity&gt;</em> in both videos?</div>
+    <p class="q">Is the grasper actively engaged with the cystic pedicle in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>No — idle in both videos</span><span class="why">D4 absent</span></li><li class="correct"><b>(b)</b><span>No — actively engaged in Video 1 only</span><span class="why">correct</span></li><li><b>(c)</b><span>No — actively engaged in Video 2 only</span><span class="why">D1 swap</span></li><li><b>(d)</b><span>Yes — actively engaged in both videos</span><span class="why">D2 collapse</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(b) No — actively engaged in Video 1 only
+      <br><span class="rel">relation: only Video 1</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="C1" data-cat="Action">
+  <div class="head">
+    <span class="tag id">C1</span><span class="tag">Action</span><span class="attr">interaction</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: ?</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is the same interaction with the tissue shown in both videos?</div>
+    <p class="q">Is the same interaction with the tissue shown in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>Yes — a grasper retracts the gallbladder in both videos</span><span class="why">D4 absent</span></li><li><b>(b)</b><span>Yes — scissors coagulates the omentum in both videos</span><span class="why">D2 collapse</span></li><li><b>(c)</b><span>No — scissors coagulates the omentum in Video 1; scissors cuts the liver in Video 2</span><span class="why">D1 swap</span></li><li class="correct"><b>(d)</b><span>No — scissors cuts the liver in Video 1; scissors coagulates the omentum in Video 2</span><span class="why">correct</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(d) No — scissors cuts the liver in Video 1; scissors coagulates the omentum in Video 2
+      <br><span class="rel">relation: different</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="C2" data-cat="Action">
+  <div class="head">
+    <span class="tag id">C2</span><span class="tag">Action</span><span class="attr">target part</span>
+    <span class="tag">Chole-Cap-DQA</span><span class="ctx">phase: calot triangle dissection</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Does <em>&lt;a tool&gt;</em> hold the same part of the <em>&lt;entity&gt;</em> in both videos?</div>
+    <p class="q">Does a grasper hold the same part of the gallbladder in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>Yes — the peritoneum in both videos</span><span class="why">D4 absent</span></li><li class="correct"><b>(b)</b><span>No — the proximal part in Video 1, the distal part in Video 2</span><span class="why">correct</span></li><li><b>(c)</b><span>No — the lateral part in Video 1, the distal part in Video 2</span><span class="why">D3 substitute</span></li><li><b>(d)</b><span>No — the distal part in Video 1, the proximal part in Video 2</span><span class="why">D1 swap</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(b) No — the proximal part in Video 1, the distal part in Video 2
+      <br><span class="rel">relation: different</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="C3" data-cat="Action">
+  <div class="head">
+    <span class="tag id">C3</span><span class="tag">Action</span><span class="attr">goal</span>
+    <span class="tag">LRYGB-Cap-DQA</span><span class="ctx">phase: gastric pouch creation</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is the surgeon pursuing the same goal in both videos?</div>
+    <p class="q">Is the surgeon pursuing the same goal in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>Yes — cutting the gastric pouch in both videos</span><span class="why">D4 absent</span></li><li><b>(b)</b><span>No — grasping the stomach in Video 1; dissecting the fat in Video 2</span><span class="why">D1 swap</span></li><li class="correct"><b>(c)</b><span>No — dissecting the fat in Video 1; grasping the stomach in Video 2</span><span class="why">correct</span></li><li><b>(d)</b><span>Yes — grasping the stomach in both videos</span><span class="why">D2 collapse</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(c) No — dissecting the fat in Video 1; grasping the stomach in Video 2
+      <br><span class="rel">relation: different</span></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="S1" data-cat="Skill">
+  <div class="head">
+    <span class="tag id">S1</span><span class="tag">Skill</span><span class="attr">Skill (CholeScore)</span>
+    <span class="tag">Chole-Skill-DQA</span><span class="ctx">phase: hepatocystic triangle dissection · criterion: Calot exposure</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is <em>&lt;criterion&gt;</em> performed to the same standard in both videos?</div>
+    <p class="q">Is Calot&#x27;s triangle exposed to the same standard in both videos?</p>
+    <ul class="options"><li><b>(a)</b><span>Yes — to the same standard in both videos</span><span class="why">D2 collapse</span></li><li><b>(b)</b><span>No — clearly better in Video 2</span><span class="why">D1 swap</span></li><li class="correct"><b>(c)</b><span>No — clearly better in Video 1</span><span class="why">correct</span></li><li><b>(d)</b><span>No — slightly better in Video 1</span><span class="why">D3 substitute</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(c) No — clearly better in Video 1
+      <br><span class="rel">relation: better in Video 1</span><div class="scores">Expert scores: Video 1 = 4, Video 2 = 2 (1–5)</div></div>
+  </div>
+</article>
+
+<article class="tcard" data-tid="S2" data-cat="Skill">
+  <div class="head">
+    <span class="tag id">S2</span><span class="tag">Skill</span><span class="attr">Skill (MultiBypass)</span>
+    <span class="tag">LRYGB-Skill-DQA</span><span class="ctx">phase: gastric pouch creation · domain: bimanual dexterity</span>
+  </div>
+  <div class="tbody">
+    <div class="stem"><span class="lbl">Template</span>Is <em>&lt;domain&gt;</em> of the same standard in both videos during the <em>&lt;step&gt;</em>?</div>
+    <p class="q">Is two-handed coordination of the same standard in both videos during the gastric pouch creation?</p>
+    <ul class="options"><li><b>(a)</b><span>No — clearly better in Video 1</span><span class="why">D1 swap</span></li><li class="correct"><b>(b)</b><span>No — clearly better in Video 2</span><span class="why">correct</span></li><li><b>(c)</b><span>Yes — to the same standard in both videos</span><span class="why">D2 collapse</span></li><li><b>(d)</b><span>No — slightly better in Video 1</span><span class="why">D3 substitute</span></li></ul>
+    <div class="ans"><span class="lbl">Answer</span>(b) No — clearly better in Video 2
+      <br><span class="rel">relation: better in Video 2</span><div class="scores">Expert scores: Video 1 = 3, Video 2 = 5 (1–5)</div></div>
+  </div>
+</article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ qualitative -->
+<section id="qualitative">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Qualitative results</div>
+    </div>
+
+    <div class="selector" data-selector data-single="1" data-cards="#qual-cards">
+<label class="sel"><span>Category</span><select id="qual-cat" data-role="cat">
+<option value="all">All</option>
+<option value="Anatomy">Anatomy</option>
+<option value="Tool">Tool</option>
+<option value="Action">Action</option>
+<option value="Skill">Skill</option>
+</select></label><label class="sel"><span>Attribute</span><select id="qual-tpl" data-role="tpl">
+<option value="A1" data-cat="Anatomy">A1 · presence</option>
+<option value="A2" data-cat="Anatomy">A2 · colour</option>
+<option value="A3" data-cat="Anatomy">A3 · position</option>
+<option value="A4" data-cat="Anatomy">A4 · state</option>
+<option value="T1" data-cat="Tool">T1 · presence</option>
+<option value="T2" data-cat="Tool">T2 · entry side</option>
+<option value="T3" data-cat="Tool">T3 · count</option>
+<option value="T4" data-cat="Tool">T4 · engagement</option>
+<option value="C1" data-cat="Action">C1 · interaction</option>
+<option value="C2" data-cat="Action">C2 · target part</option>
+<option value="C3" data-cat="Action">C3 · goal</option>
+<option value="S1" data-cat="Skill">S1 · Skill (CholeScore)</option>
+<option value="S2" data-cat="Skill">S2 · Skill (MultiBypass)</option>
+</select></label>
+    </div>
+
+    <div class="qual-grid" id="qual-cards">
+
+<article class="example qual" id="qual-A1" data-tid="A1" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A1</span>
+    <span class="q">Is the liver visible in both videos?</span>
+    <span class="tag">Anatomy · presence</span>
+    <span class="tag">LRYGB-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: gastrojejunal anastomosis</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/A1_v1.jpg" alt="Three frames of video 1 for item A1" loading="lazy"><div class="t">1.6 s · 12 s · 76 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/A1_v2.jpg" alt="Three frames of video 2 for item A1" loading="lazy"><div class="t">0.0 s · 96 s · 144 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li class="correct"><b>(a)</b><span>Yes — visible in both videos</span><span class="why">correct</span></li><li><b>(b)</b><span>No — visible in Video 2 only</span><span class="why">D3 substitute</span></li><li><b>(c)</b><span>No — visible in Video 1 only</span><span class="why">D3 substitute</span></li><li><b>(d)</b><span>No — visible in neither video</span><span class="why">D4 absent</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(b)</span> <span class="why">D3 substitute</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(c)</span> <span class="why">D3 substitute</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> visible. <span class="h2">Video 2:</span> visible. (a)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-A2" data-tid="A2" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A2</span>
+    <span class="q">Is the gallbladder the same color in both videos?</span>
+    <span class="tag">Anatomy · colour</span>
+    <span class="tag">Chole-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: calot triangle dissection</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/A2_v1.jpg" alt="Three frames of video 1 for item A2" loading="lazy"><div class="t">0.1 s · 0.8 s · 1.4 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/A2_v2.jpg" alt="Three frames of video 2 for item A2" loading="lazy"><div class="t">0.1 s · 0.5 s · 0.9 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>Yes — gray in both videos</span><span class="why">D4 absent</span></li><li><b>(b)</b><span>No — light yellow in Video 1, blue-green in Video 2</span><span class="why">D1 swap</span></li><li class="correct"><b>(c)</b><span>No — blue-green in Video 1, light yellow in Video 2</span><span class="why">correct</span></li><li><b>(d)</b><span>No — gray in Video 1, light yellow in Video 2</span><span class="why">D3 substitute</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(b)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(b)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> blue-green. <span class="h2">Video 2:</span> light yellow. (c)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-A3" data-tid="A3" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A3</span>
+    <span class="q">Is the gallbladder in the same part of the view in both videos?</span>
+    <span class="tag">Anatomy · position</span>
+    <span class="tag">Chole-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: calot triangle dissection</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/A4_v1.jpg" alt="Three frames of video 1 for item A3" loading="lazy"><div class="t">1.2 s · 7.7 s · 14 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/A4_v2.jpg" alt="Three frames of video 2 for item A3" loading="lazy"><div class="t">0.1 s · 0.4 s · 0.8 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>No — left in Video 1, bottom in Video 2</span><span class="why">D3 substitute</span></li><li><b>(b)</b><span>Yes — center in both videos</span><span class="why">D2 collapse</span></li><li><b>(c)</b><span>No — center in Video 1, left in Video 2</span><span class="why">D1 swap</span></li><li class="correct"><b>(d)</b><span>No — left in Video 1, center in Video 2</span><span class="why">correct</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(c)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(c)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> left. <span class="h2">Video 2:</span> center. (d)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-A4" data-tid="A4" data-cat="Anatomy">
+  <div class="head">
+    <span class="tag id">A4</span>
+    <span class="q">Is the gallbladder coagulated in both videos?</span>
+    <span class="tag">Anatomy · state</span>
+    <span class="tag">Chole-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: calot triangle dissection</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/A6_v1.jpg" alt="Three frames of video 1 for item A4" loading="lazy"><div class="t">0.1 s · 0.4 s · 0.8 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/A6_v2.jpg" alt="Three frames of video 2 for item A4" loading="lazy"><div class="t">0.1 s · 0.8 s · 1.5 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>Yes — coagulated in both videos</span><span class="why">D2 collapse</span></li><li class="correct"><b>(b)</b><span>No — coagulated in Video 1 only</span><span class="why">correct</span></li><li><b>(c)</b><span>No — coagulated in Video 2 only</span><span class="why">D1 swap</span></li><li><b>(d)</b><span>No — coagulated in neither video</span><span class="why">D4 absent</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(a)</span> <span class="why">D2 collapse</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(a)</span> <span class="why">D2 collapse</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> coagulated. <span class="h2">Video 2:</span> not coagulated. (b)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-T1" data-tid="T1" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T1</span>
+    <span class="q">Is a stapler used in both videos?</span>
+    <span class="tag">Tool · presence</span>
+    <span class="tag">LRYGB-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: gastrojejunal anastomosis</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/T1_v1.jpg" alt="Three frames of video 1 for item T1" loading="lazy"><div class="t">5.6 s · 35 s · 64 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/T1_v2.jpg" alt="Three frames of video 2 for item T1" loading="lazy"><div class="t">3.8 s · 24 s · 44 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>No — a stapler is used in Video 1 only</span><span class="why">D3 substitute</span></li><li class="correct"><b>(b)</b><span>Yes — a stapler is used in both videos</span><span class="why">correct</span></li><li><b>(c)</b><span>No — a stapler is used in Video 2 only</span><span class="why">D3 substitute</span></li><li><b>(d)</b><span>No — no stapler appears in either video</span><span class="why">D4 absent</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(c)</span> <span class="why">D3 substitute</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(a)</span> <span class="why">D3 substitute</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> used. <span class="h2">Video 2:</span> used. (b)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-T2" data-tid="T2" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T2</span>
+    <span class="q">Does the needle driver enter from the same side in both videos?</span>
+    <span class="tag">Tool · entry side</span>
+    <span class="tag">LRYGB-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: jejunojejunal anastomosis</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/T3_v1.jpg" alt="Three frames of video 1 for item T2" loading="lazy"><div class="t">0.9 s · 5.7 s · 11 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/T3_v2.jpg" alt="Three frames of video 2 for item T2" loading="lazy"><div class="t">6.5 s · 41 s · 75 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>Yes — from the left in both videos</span><span class="why">D4 absent</span></li><li><b>(b)</b><span>No — from the left in Video 1, from the right in Video 2</span><span class="why">D1 swap</span></li><li><b>(c)</b><span>No — from the right in Video 1, from the left in Video 2</span><span class="why">D2 collapse</span></li><li class="correct"><b>(d)</b><span>Yes — from the right in both videos</span><span class="why">correct</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(c)</span> <span class="why">D2 collapse</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(c)</span> <span class="why">D2 collapse</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> right. <span class="h2">Video 2:</span> right. (d)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-T3" data-tid="T3" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T3</span>
+    <span class="q">Do both videos show the same number of instruments engaging the gallbladder?</span>
+    <span class="tag">Tool · count</span>
+    <span class="tag">Chole-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: calot triangle dissection</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/T5_v1.jpg" alt="Three frames of video 1 for item T3" loading="lazy"><div class="t">0.1 s · 0.6 s · 1.0 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/T5_v2.jpg" alt="Three frames of video 2 for item T3" loading="lazy"><div class="t">0.6 s · 3.9 s · 7.2 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>No — more instruments in Video 1</span><span class="why">D1 swap</span></li><li class="correct"><b>(b)</b><span>No — more instruments in Video 2</span><span class="why">correct</span></li><li><b>(c)</b><span>Yes — the same number in both videos</span><span class="why">D2 collapse</span></li><li><b>(d)</b><span>Yes — neither video shows an instrument engaging it</span><span class="why">D4 absent</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(a)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(a)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> 0 instruments. <span class="h2">Video 2:</span> 1 instrument. (b)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-T4" data-tid="T4" data-cat="Tool">
+  <div class="head">
+    <span class="tag id">T4</span>
+    <span class="q">Is the grasper actively engaged with the cystic pedicle in both videos?</span>
+    <span class="tag">Tool · engagement</span>
+    <span class="tag">Chole-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: cleaning and coagulation</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/T6_v1.jpg" alt="Three frames of video 1 for item T4" loading="lazy"><div class="t">0.1 s · 0.6 s · 1.2 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/T6_v2.jpg" alt="Three frames of video 2 for item T4" loading="lazy"><div class="t">0.0 s · 0.4 s · 0.7 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>No — idle in both videos</span><span class="why">D4 absent</span></li><li class="correct"><b>(b)</b><span>No — actively engaged in Video 2 only</span><span class="why">correct</span></li><li><b>(c)</b><span>No — actively engaged in Video 1 only</span><span class="why">D1 swap</span></li><li><b>(d)</b><span>Yes — actively engaged in both videos</span><span class="why">D2 collapse</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(a)</span> <span class="why">D4 absent</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(c)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> not engaged. <span class="h2">Video 2:</span> engaged. (b)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-C1" data-tid="C1" data-cat="Action">
+  <div class="head">
+    <span class="tag id">C1</span>
+    <span class="q">Is the same interaction with the tissue shown in both videos?</span>
+    <span class="tag">Action · interaction</span>
+    <span class="tag">LRYGB-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: gastric pouch creation</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/C1_v1.jpg" alt="Three frames of video 1 for item C1" loading="lazy"><div class="t">2.6 s · 16 s · 30 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/C1_v2.jpg" alt="Three frames of video 2 for item C1" loading="lazy"><div class="t">0.8 s · 4.7 s · 8.6 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li class="correct"><b>(a)</b><span>No — a stapler grasps the stomach in Video 1; an energy device dissects the stomach in Video 2</span><span class="why">correct</span></li><li><b>(b)</b><span>No — an energy device dissects the stomach in Video 1; a stapler grasps the stomach in Video 2</span><span class="why">D1 swap</span></li><li><b>(c)</b><span>Yes — a stapler grasps the stomach in both videos</span><span class="why">D2 collapse</span></li><li><b>(d)</b><span>Yes — a grasper grasps the gastric pouch in both videos</span><span class="why">D4 absent</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(d)</span> <span class="why">D4 absent</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(b)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> a stapler grasps the stomach. <span class="h2">Video 2:</span> an energy device dissects the stomach. (a)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-C2" data-tid="C2" data-cat="Action">
+  <div class="head">
+    <span class="tag id">C2</span>
+    <span class="q">Does a grasper hold the same part of the gallbladder in both videos?</span>
+    <span class="tag">Action · target part</span>
+    <span class="tag">Chole-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: preparation</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/C2_v1.jpg" alt="Three frames of video 1 for item C2" loading="lazy"><div class="t">0.2 s · 1.0 s · 1.8 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/C2_v2.jpg" alt="Three frames of video 2 for item C2" loading="lazy"><div class="t">0.1 s · 0.5 s · 0.9 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>No — the distal part in Video 1, the proximal part in Video 2</span><span class="why">D1 swap</span></li><li><b>(b)</b><span>No — the proximal part in Video 1, the distal part in Video 2</span><span class="why">D2 collapse</span></li><li><b>(c)</b><span>Yes — the distal part in both videos</span><span class="why">D4 absent</span></li><li class="correct"><b>(d)</b><span>Yes — the proximal part in both videos</span><span class="why">correct</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(a)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(a)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> proximal part. <span class="h2">Video 2:</span> proximal part. (d)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-C3" data-tid="C3" data-cat="Action">
+  <div class="head">
+    <span class="tag id">C3</span>
+    <span class="q">Is the surgeon pursuing the same goal in both videos?</span>
+    <span class="tag">Action · goal</span>
+    <span class="tag">LRYGB-Cap-DQA</span>
+  </div>
+  <div class="meta">phase: jejunojejunal anastomosis</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/C4_v1.jpg" alt="Three frames of video 1 for item C3" loading="lazy"><div class="t">3.9 s · 24 s · 44 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/C4_v2.jpg" alt="Three frames of video 2 for item C3" loading="lazy"><div class="t">1.4 s · 8.7 s · 16 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>Yes — suturing the jejunojejunal defect in both videos</span><span class="why">D4 absent</span></li><li><b>(b)</b><span>No — suturing the gastrojejunal defect in Video 1; cutting the biliary limb in Video 2</span><span class="why">D1 swap</span></li><li><b>(c)</b><span>No — cutting the biliary limb in Video 1; cutting the alimentary limb in Video 2</span><span class="why">D3 substitute</span></li><li class="correct"><b>(d)</b><span>No — cutting the biliary limb in Video 1; suturing the gastrojejunal defect in Video 2</span><span class="why">correct</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(a)</span> <span class="why">D4 absent</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(b)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> cutting the biliary limb. <span class="h2">Video 2:</span> suturing the gastrojejunal defect. (d)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-S1" data-tid="S1" data-cat="Skill">
+  <div class="head">
+    <span class="tag id">S1</span>
+    <span class="q">Is the cystic duct dissected to the same standard in both videos?</span>
+    <span class="tag">Skill · Skill (CholeScore)</span>
+    <span class="tag">Chole-Skill-DQA</span>
+  </div>
+  <div class="meta">phase: hepatocystic triangle dissection · criterion: cystic duct dissection</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/S1_v1.jpg" alt="Three frames of video 1 for item S1" loading="lazy"><div class="t">57 s · 356 s · 655 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/S1_v2.jpg" alt="Three frames of video 2 for item S1" loading="lazy"><div class="t">63 s · 394 s · 725 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li><b>(a)</b><span>No — slightly better in Video 1</span><span class="why">D3 substitute</span></li><li><b>(b)</b><span>No — clearly better in Video 1</span><span class="why">D1 swap</span></li><li class="correct"><b>(c)</b><span>No — clearly better in Video 2</span><span class="why">correct</span></li><li><b>(d)</b><span>Yes — to the same standard in both videos</span><span class="why">D2 collapse</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(b)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(b)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> score 3. <span class="h2">Video 2:</span> score 5. (c)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+
+<article class="example qual" id="qual-S2" data-tid="S2" data-cat="Skill">
+  <div class="head">
+    <span class="tag id">S2</span>
+    <span class="q">Is two-handed coordination of the same standard in both videos during the gastric pouch creation?</span>
+    <span class="tag">Skill · Skill (MultiBypass)</span>
+    <span class="tag">LRYGB-Skill-DQA</span>
+  </div>
+  <div class="meta">phase: gastric pouch creation · domain: bimanual dexterity</div>
+  <div class="strips">
+    <div class="strip v1"><div class="label"><i></i>Video 1</div>
+      <div class="one"><img src="static/images/qualitative/S3_v1.jpg" alt="Three frames of video 1 for item S2" loading="lazy"><div class="t">31 s · 192 s · 352 s</div></div></div>
+    <div class="strip v2"><div class="label"><i></i>Video 2</div>
+      <div class="one"><img src="static/images/qualitative/S3_v2.jpg" alt="Three frames of video 2 for item S2" loading="lazy"><div class="t">196 s · 1224 s · 2251 s</div></div></div>
+  </div>
+  <div class="body">
+    <ul class="options"><li class="correct"><b>(a)</b><span>No — clearly better in Video 1</span><span class="why">correct</span></li><li><b>(b)</b><span>No — slightly better in Video 1</span><span class="why">D3 substitute</span></li><li><b>(c)</b><span>Yes — to the same standard in both videos</span><span class="why">D2 collapse</span></li><li><b>(d)</b><span>No — clearly better in Video 2</span><span class="why">D1 swap</span></li></ul>
+    <div class="preds">
+      <div class="lbl">Model outputs</div>
+      <table><tr><th scope="row">Gemini 3.6 Flash<small>zero-shot</small></th><td><span class="line">(d)</span> <span class="why">D1 swap</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">Qwen3.5-9B<small>fine-tuned backbone</small></th><td><span class="line">(c)</span> <span class="why">D2 collapse</span></td><td><span class="bad">✗</span></td></tr><tr><th scope="row">EndoComparer<small>ours</small></th><td><span class="line">“<span class="h1">Video 1:</span> score 5. <span class="h2">Video 2:</span> score 3. (a)”</span></td><td><span class="ok">✓</span></td></tr></table>
+    </div>
+  </div>
+</article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ bibtex -->
+<section id="bibtex">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Citation</div>
+      <h2>BibTeX</h2>
+    </div>
+    <p class="muted">To be added.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <b>CAMMA</b> · Computational Analysis and Modeling of Medical Activities<br>
+        <a href="https://camma.unistra.fr/">camma.unistra.fr</a> · University of Strasbourg · IHU Strasbourg
+      </div>
+      <div>
+        Built on <a href="https://github.com/CAMMA-public/cholect50">CholecT50</a>, <a href="https://github.com/CAMMA-public/MultiBypass140">MultiBypass140</a> and <a href="https://github.com/CAMMA-public/cholescore">CholeScore</a>.
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="static/js/main.js"></script>
+</body>
+</html>

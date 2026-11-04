@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "endocomparer"
+version = "1.0.0"
+description = "EndoComparer: comparative surgical video question answering"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "transformers>=5.17",
+    "peft",
+    "accelerate",
+    "safetensors",
+    "huggingface-hub",
+    "flash-linear-attention",
+    "triton>=3.7.1",
+    "qwen-vl-utils",
+    "decord",
+    "numpy",
+    "pyarrow",
+    "PyYAML",
+    "packaging",
+]
+
+[project.optional-dependencies]
+flash = ["flash-attn"]
+
+[tool.setuptools.packages.find]
+include = ["endocomparer*", "endodiffvqa*"]

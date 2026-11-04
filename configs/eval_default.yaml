@@ -1,0 +1,9 @@
+model: Qwen/Qwen3.5-9B
+weights: ethanshili/EndoComparer
+frames_caption: 16
+frames_skill: 64
+max_pixels: 351232
+max_new_tokens: 96
+slot_map: "12"                  
+controls: full                  
+attn: flash_attention_2
